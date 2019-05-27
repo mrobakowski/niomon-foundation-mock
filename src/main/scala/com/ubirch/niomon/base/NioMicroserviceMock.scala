@@ -1,5 +1,7 @@
 package com.ubirch.niomon.base
 
+import java.util.concurrent.TimeoutException
+
 import akka.Done
 import akka.kafka.scaladsl.Consumer.{DrainingControl, NoopControl}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -77,7 +79,7 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
       }
       results = nonMatched
 
-      matched
+      val res = matched
         .map { pr =>
           val serializedValue = outputPayload.serializer.serialize(pr.topic(), pr.headers(), pr.value())
           val deserializedValue = valueDeserializer.deserialize(pr.topic(), pr.headers(), serializedValue)
@@ -88,6 +90,10 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
         }
         .groupBy(_._1)
         .map { case (key, v) => key -> v.map { x => x._2 -> x._3 }.toList }
+
+      if (res.values.flatten.size < num) throw new TimeoutException()
+
+      res
     }
   }
 }
