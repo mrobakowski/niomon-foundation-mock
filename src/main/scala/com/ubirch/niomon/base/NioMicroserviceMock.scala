@@ -1,11 +1,13 @@
 package com.ubirch.niomon.base
 
+import java.util.UUID
 import java.util.concurrent.TimeoutException
 
 import akka.Done
 import akka.kafka.scaladsl.Consumer.{DrainingControl, NoopControl}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.ubirch.niomon.util.{KafkaPayload, KafkaPayloadFactory}
+import com.ubirch.kafka._
 import net.manub.embeddedkafka.NioMockKafka
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -21,6 +23,8 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
   inputPayloadFactory: KafkaPayloadFactory[I],
   outputPayloadFactory: KafkaPayloadFactory[O]
 ) extends NioMicroservice[I, O] {
+  var name: String = s"nio-microservice-mock-${UUID.randomUUID()}"
+  var errorTopic: Option[String] = None
   var outputTopics: Map[String, String] = Map()
   var config: Config = ConfigFactory.empty()
   var redisson: RedissonClient = {
@@ -42,7 +46,7 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
 
   def run: DrainingControl[Done] = DrainingControl((NoopControl, Future.successful(Done)))
 
-  var errors: Vector[Throwable] = Vector()
+  var errors: Vector[ProducerRecord[String, String]] = Vector()
   var results: Vector[ProducerRecord[String, O]] = Vector()
 
   val kafkaMocks: NioMockKafka = new NioMockKafka {
@@ -51,46 +55,67 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
       val serializedValue = vSer.serialize(record.topic(), record.value())
 
       val key = new StringDeserializer().deserialize(record.topic(), serializedKey)
-      val value = inputPayload.deserializer.deserialize(record.topic(), record.headers(), serializedValue)
+      val value = Try(inputPayload.deserializer.deserialize(record.topic(), record.headers(), serializedValue))
 
-      val processed = Try(logic.processRecord(new ConsumerRecord[String, I](record.topic(), record.partition(), 0, 0,
-        null, 0L, 0, 0, key, value, record.headers())))
+      val msg = new ConsumerRecord[String, Try[I]](record.topic(), record.partition(), 0, 0,
+        null, 0L, 0, 0, key, value, record.headers())
+      val processed = Try(logic.processRecord(msg.copy(value = msg.value().get)))
 
-      processed.fold({
-        errors :+= _
+      processed.fold({ e =>
+        errors :+= producerErrorRecordToStringRecord(
+          wrapThrowableInKafkaRecord(msg, e),
+          errorTopic.getOrElse("unused-topic")
+        )
       }, {
         results :+= _
       })
     }
 
-    override def get[K, T](topics: Set[String], num: Int, keyDeserializer: Deserializer[K],
-      valueDeserializer: Deserializer[T]): Map[String, List[(K, T)]] = {
-      var matched = Vector[ProducerRecord[String, O]]()
-      var nonMatched = Vector[ProducerRecord[String, O]]()
+    override def get[K, T](
+      topics: Set[String],
+      num: Int,
+      keyDeserializer: Deserializer[K],
+      valueDeserializer: Deserializer[T]
+    ): Map[String, List[(K, T)]] = {
       var i = 0
 
-      results.foreach { r =>
-        if (i < num && topics.contains(r.topic())) {
-          matched :+= r
-          i += 1
-        } else {
-          nonMatched :+= r
+      def splitMatching[X](x: Vector[ProducerRecord[String, X]]): (Vector[ProducerRecord[String, X]], Vector[ProducerRecord[String, X]]) = {
+        var matched = Vector[ProducerRecord[String, X]]()
+        var nonMatched = Vector[ProducerRecord[String, X]]()
+        x.foreach { r =>
+          if (i < num && topics.contains(r.topic())) {
+            matched :+= r
+            i += 1
+          } else {
+            nonMatched :+= r
+          }
         }
+        (matched, nonMatched)
       }
+
+      val (matched, nonMatched) = splitMatching(results)
       results = nonMatched
 
-      val res = matched
-        .map { pr =>
-          val serializedValue = outputPayload.serializer.serialize(pr.topic(), pr.headers(), pr.value())
-          val deserializedValue = valueDeserializer.deserialize(pr.topic(), pr.headers(), serializedValue)
+      val (matchedErrors, nonMatchedErrors) = splitMatching(errors)
+      errors = nonMatchedErrors
 
-          val serializedKey = new StringSerializer().serialize(pr.topic(), pr.headers(), pr.key())
-          val deserializedKey = keyDeserializer.deserialize(pr.topic(), pr.headers(), serializedKey)
-          (pr.topic(), deserializedKey, deserializedValue)
-        }
-        .groupBy(_._1)
-        .map { case (key, v) => key -> v.map { x => x._2 -> x._3 }.toList }
+      def processMatches[X](matched: Vector[ProducerRecord[String, X]], serializer: Serializer[X]): Map[String, List[(K, T)]] = {
+        matched
+          .map { pr =>
+            val serializedValue = serializer.serialize(pr.topic(), pr.headers(), pr.value())
+            val deserializedValue = valueDeserializer.deserialize(pr.topic(), pr.headers(), serializedValue)
 
+            val serializedKey = new StringSerializer().serialize(pr.topic(), pr.headers(), pr.key())
+            val deserializedKey = keyDeserializer.deserialize(pr.topic(), pr.headers(), serializedKey)
+            (pr.topic(), deserializedKey, deserializedValue)
+          }
+          .groupBy(_._1)
+          .map { case (key, v) => key -> v.map { x => x._2 -> x._3 }.toList }
+      }
+
+      val res = processMatches(matched, outputPayload.serializer) ++ processMatches(matchedErrors, new StringSerializer())
+
+      // this is a timeout, because this is a mock and I'm trying to mirror the original behavior
       if (res.values.flatten.size < num) throw new TimeoutException()
 
       res
