@@ -26,7 +26,7 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
   outputPayloadFactory: KafkaPayloadFactory[O]
 ) extends NioMicroservice[I, O] {
   var name: String = s"nio-microservice-mock-${UUID.randomUUID()}"
-  override protected def logger: Logger = Logger(LoggerFactory.getLogger(getClass.getName + s"($name)"))
+  protected val logger: Logger = Logger(LoggerFactory.getLogger(getClass.getName + s"($name)"))
   var errorTopic: Option[String] = None
   var outputTopics: Map[String, String] = Map()
   var config: Config = ConfigFactory.empty()
