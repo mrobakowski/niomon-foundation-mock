@@ -6,6 +6,7 @@ import java.util.concurrent.TimeoutException
 import akka.Done
 import akka.kafka.scaladsl.Consumer.{DrainingControl, NoopControl}
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.Logger
 import com.ubirch.niomon.util.{KafkaPayload, KafkaPayloadFactory}
 import com.ubirch.kafka._
 import net.manub.embeddedkafka.NioMockKafka
@@ -15,6 +16,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serializer, StringDe
 import org.mockito.MockitoSugar
 import org.mockito.stubbing.ReturnsDeepStubs
 import org.redisson.api.RedissonClient
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -24,6 +26,7 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
   outputPayloadFactory: KafkaPayloadFactory[O]
 ) extends NioMicroservice[I, O] {
   var name: String = s"nio-microservice-mock-${UUID.randomUUID()}"
+  protected val logger: Logger = Logger(LoggerFactory.getLogger(getClass.getName + s"($name)"))
   var errorTopic: Option[String] = None
   var outputTopics: Map[String, String] = Map()
   var config: Config = ConfigFactory.empty()
