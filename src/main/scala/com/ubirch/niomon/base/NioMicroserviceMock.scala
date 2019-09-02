@@ -30,7 +30,7 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
   var errorTopic: Option[String] = None
   var outputTopics: Map[String, String] = Map()
   var config: Config = ConfigFactory.empty()
-  var redisson: RedissonClient = {
+  val redisson: RedissonClient = {
     val mock = MockitoSugar.mock[RedissonClient](ReturnsDeepStubs)
     mock
   }
