@@ -37,12 +37,6 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
 
   override def context: NioMicroservice.Context = new NioMicroservice.Context(redisson, config)
 
-  override lazy val onlyOutputTopic: String = {
-    if (outputTopics.size != 1)
-      throw new IllegalStateException("you cannot use `onlyOutputTopic` with multiple output topics defined!")
-    outputTopics.values.head
-  }
-
   lazy val inputPayload: KafkaPayload[I] = inputPayloadFactory(context)
   lazy val outputPayload: KafkaPayload[O] = outputPayloadFactory(context)
   lazy val logic: NioMicroserviceLogic[I, O] = logicFactory(this)
