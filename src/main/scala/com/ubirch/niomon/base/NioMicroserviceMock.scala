@@ -9,13 +9,13 @@ import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
 import com.ubirch.niomon.util.{KafkaPayload, KafkaPayloadFactory}
 import com.ubirch.kafka._
+import com.ubirch.niomon.cache.RedisCache
 import net.manub.embeddedkafka.NioMockKafka
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serializer, StringDeserializer, StringSerializer}
 import org.mockito.MockitoSugar
 import org.mockito.stubbing.ReturnsDeepStubs
-import org.redisson.api.RedissonClient
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
@@ -30,12 +30,12 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
   var errorTopic: Option[String] = None
   var outputTopics: Map[String, String] = Map()
   var config: Config = ConfigFactory.empty()
-  val redisson: RedissonClient = {
-    val mock = MockitoSugar.mock[RedissonClient](ReturnsDeepStubs)
+  val redisCache: RedisCache = {
+    val mock = MockitoSugar.mock[RedisCache](ReturnsDeepStubs)
     mock
   }
 
-  override def context: NioMicroservice.Context = new NioMicroservice.Context(redisson, config)
+  override def context: NioMicroservice.Context = new NioMicroservice.Context(redisCache, config)
 
   lazy val inputPayload: KafkaPayload[I] = inputPayloadFactory(context)
   lazy val outputPayload: KafkaPayload[O] = outputPayloadFactory(context)
