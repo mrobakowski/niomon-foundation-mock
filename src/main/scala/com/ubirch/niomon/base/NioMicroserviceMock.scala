@@ -21,6 +21,10 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.Future
 import scala.util.Try
 
+/**
+ * Implementation of NioMicroservice for use in tests of different NioMicroserviceLogics. Redis and Kafka are mocked,
+ * which makes the tests fairly fast.
+ */
 class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicroserviceLogic[I, O])(implicit
   inputPayloadFactory: KafkaPayloadFactory[I],
   outputPayloadFactory: KafkaPayloadFactory[O]
@@ -46,6 +50,9 @@ class NioMicroserviceMock[I, O](logicFactory: NioMicroservice[I, O] => NioMicros
   var errors: Vector[ProducerRecord[String, String]] = Vector()
   var results: Vector[ProducerRecord[String, O]] = Vector()
 
+  // This is where most of the magic happens. The `put` method basically kicks off the logic processing and then puts
+  // the results into [[results]] vector. The `get` method gets the matching messages out the [[results]] vector
+  // and returns them
   val kafkaMocks: NioMockKafka = new NioMockKafka {
     override def put[K, T](kSer: Serializer[K], vSer: Serializer[T], record: ProducerRecord[K, T]): Unit = {
       val serializedKey = kSer.serialize(record.topic(), record.key())

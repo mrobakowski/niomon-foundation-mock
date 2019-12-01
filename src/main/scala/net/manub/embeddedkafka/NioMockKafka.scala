@@ -6,6 +6,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serializer, StringSe
 
 import scala.concurrent.duration._
 
+/** "EmbeddedKafka", which actually isn't kafka, it's just a facade for an in-memory mock implementation. */
 trait NioMockKafka extends ConsumerOps[EmbeddedKafkaConfig] with ProducerOps[EmbeddedKafkaConfig] {
   override private[embeddedkafka] def baseConsumerConfig(implicit config: EmbeddedKafkaConfig): Map[String, Object] = ???
 
