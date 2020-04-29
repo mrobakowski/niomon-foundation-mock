@@ -7,9 +7,9 @@ import akka.Done
 import akka.kafka.scaladsl.Consumer.{DrainingControl, NoopControl}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
-import com.ubirch.niomon.util.{KafkaPayload, KafkaPayloadFactory}
 import com.ubirch.kafka._
 import com.ubirch.niomon.cache.RedisCache
+import com.ubirch.niomon.util.{KafkaPayload, KafkaPayloadFactory}
 import net.manub.embeddedkafka.NioMockKafka
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
