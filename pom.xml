@@ -138,12 +138,6 @@
     </build>
 
     <repositories>
-        <!-- simple kafka client -->
-        <repository>
-            <id>bintray-cakesolutions-maven</id>
-            <name>bintray</name>
-            <url>http://dl.bintray.com/cakesolutions/maven</url>
-        </repository>
 
         <repository>
             <id>snapshots-repo</id>
