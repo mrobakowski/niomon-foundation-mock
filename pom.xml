@@ -24,12 +24,12 @@
     <parent>
         <groupId>com.ubirch.niomon</groupId>
         <artifactId>parent</artifactId>
-        <version>1.0.3-SNAPSHOT</version>
+        <version>1.0.4-SNAPSHOT</version>
         <relativePath>../parent</relativePath>
     </parent>
 
     <artifactId>foundation-mock</artifactId>
-    <version>1.0.3-SNAPSHOT</version>
+    <version>1.0.4-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <licenses>
@@ -84,7 +84,7 @@
         <dependency>
             <groupId>com.ubirch.niomon</groupId>
             <artifactId>foundation</artifactId>
-            <version>1.0.3-SNAPSHOT</version>
+            <version>1.0.4-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -138,12 +138,6 @@
     </build>
 
     <repositories>
-        <!-- simple kafka client -->
-        <repository>
-            <id>bintray-cakesolutions-maven</id>
-            <name>bintray</name>
-            <url>http://dl.bintray.com/cakesolutions/maven</url>
-        </repository>
 
         <repository>
             <id>snapshots-repo</id>
